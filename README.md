@@ -2,7 +2,7 @@
 For the DSA practice 
 # Cash Flow Minimizer System
 
-This is a Kivy-based application that helps minimize the number of transactions among multiple banks using different payment modes. It aims to reduce the total number of transactions needed to settle debts between banks.
+This is an application that helps minimize the number of transactions among multiple banks using different payment modes. It aims to reduce the total number of transactions needed to settle debts between banks.
 
 ## Features
 
