@@ -1,0 +1,179 @@
+from itertools import combinations
+
+class Bank:
+    def __init__(self, name):
+        self.name = name
+        self.net_amount = 0
+        self.types = set()
+
+def get_min_index(list_of_net_amounts, num_banks):
+    min_value = float('inf') #this correctly sets min_vslue to the first element's value
+    min_index = -1 #before the loop, it states the minumum index has not been found yet
+    for i in range(num_banks): #num_bank = total number of banks
+        if list_of_net_amounts[i].net_amount == 0: 
+            continue # "i" is the index of the current bank the bank with net amount 0 is not considered when looking for a minimum
+        if list_of_net_amounts[i].net_amount < min_value:
+            min_index = i #update the min_index
+            min_value = list_of_net_amounts[i].net_amount #min_value is updated to the net_amunt
+    return min_index
+
+def get_simple_max_index(list_of_net_amounts, num_banks):
+    max_value = float('-inf')
+    max_index = -1
+    for i in range(num_banks):
+        if list_of_net_amounts[i].net_amount == 0:
+            continue
+        if list_of_net_amounts[i].net_amount > max_value:
+            max_index = i
+            max_value = list_of_net_amounts[i].net_amount
+    return max_index
+
+#find the bank with the maximum net amount that also shares at least one comon payment type with another bank in the list
+def get_max_index(list_of_net_amounts, num_banks, min_index, input_banks, max_num_types):
+    max_value = float('-inf')
+    max_index = -1
+    matching_type = '' #initializes matching type as an empty string 
+    
+    for i in range(num_banks):
+        if list_of_net_amounts[i].net_amount == 0 or list_of_net_amounts[i].net_amount < 0:
+            continue # Skip banks with zero or negative net amounts
+        
+        intersection = list_of_net_amounts[min_index].types.intersection(list_of_net_amounts[i].types)
+        #find the intersection of payment types between the bank at min_index and the current bank{i}
+        #set intersection method types.intersection
+        
+        if intersection and max_value < list_of_net_amounts[i].net_amount:
+            #if there is a common payment type and the current bank's net amount is grater than max_value
+            max_value = list_of_net_amounts[i].net_amount
+            max_index = i
+            matching_type = next(iter(intersection)) # Get one of the common payment types, return an iterator for the object
+            #return the next item from the iteration
+            
+    return max_index, matching_type
+
+def print_ans(ans_graph, num_banks, input_banks):
+    print("\nThe transactions for minimum cash flow are as follows : \n")
+    
+    for i in range(num_banks):
+        for j in range(num_banks):
+            if i == j:
+                continue
+            
+            if ans_graph[i][j][0] != 0 and ans_graph[j][i][0] != 0:
+                if ans_graph[i][j][0] == ans_graph[j][i][0]:
+                    ans_graph[i][j] = (0, "")
+                    ans_graph[j][i] = (0, "")
+                elif ans_graph[i][j][0] > ans_graph[j][i][0]:
+                    ans_graph[i][j] = (ans_graph[i][j][0] - ans_graph[j][i][0], ans_graph[i][j][1])
+                    ans_graph[j][i] = (0, "")
+                    print(f"{input_banks[i].name} pays Rs {ans_graph[i][j][0]} to {input_banks[j].name} via {ans_graph[i][j][1]}")
+                else:
+                    ans_graph[j][i] = (ans_graph[j][i][0] - ans_graph[i][j][0], ans_graph[j][i][1])
+                    ans_graph[i][j] = (0, "")
+                    print(f"{input_banks[j].name} pays Rs {ans_graph[j][i][0]} to {input_banks[i].name} via {ans_graph[j][i][1]}")
+            elif ans_graph[i][j][0] != 0:
+                print(f"{input_banks[i].name} pays Rs {ans_graph[i][j][0]} to {input_banks[j].name} via {ans_graph[i][j][1]}")
+            elif ans_graph[j][i][0] != 0:
+                print(f"{input_banks[j].name} pays Rs {ans_graph[j][i][0]} to {input_banks[i].name} via {ans_graph[j][i][1]}")
+
+def minimize_cash_flow(num_banks, input_banks, index_of, num_transactions, graph, max_num_types):
+    # Step 1: Calculate the net amount for each bank
+    list_of_net_amounts = [Bank(input_banks[i].name) for i in range(num_banks)]
+    
+    for b in range(num_banks):
+        list_of_net_amounts[b].types = input_banks[b].types
+        amount = 0
+        
+        # Calculate net amount
+        for i in range(num_banks):
+            amount += graph[i][b]
+        
+        for j in range(num_banks):
+            amount -= graph[b][j]
+        
+        list_of_net_amounts[b].net_amount = amount
+    
+    ans_graph = [[(0, "") for _ in range(num_banks)] for _ in range(num_banks)]
+    num_zero_net_amounts = sum(1 for bank in list_of_net_amounts if bank.net_amount == 0)
+    
+    # Step 2: Minimize cash flow until all net amounts are zero
+    while num_zero_net_amounts != num_banks:
+        min_index = get_min_index(list_of_net_amounts, num_banks)
+        max_index, matching_type = get_max_index(list_of_net_amounts, num_banks, min_index, input_banks, max_num_types)
+        
+        if max_index == -1:
+            ans_graph[min_index][0] = (abs(list_of_net_amounts[min_index].net_amount), next(iter(input_banks[min_index].types)))
+            simple_max_index = get_simple_max_index(list_of_net_amounts, num_banks)
+            ans_graph[0][simple_max_index] = (abs(list_of_net_amounts[min_index].net_amount), next(iter(input_banks[simple_max_index].types)))
+            list_of_net_amounts[simple_max_index].net_amount += list_of_net_amounts[min_index].net_amount
+            list_of_net_amounts[min_index].net_amount = 0
+            
+            if list_of_net_amounts[min_index].net_amount == 0:
+                num_zero_net_amounts += 1
+            
+            if list_of_net_amounts[simple_max_index].net_amount == 0:
+                num_zero_net_amounts += 1
+        
+        else:
+            transaction_amount = min(abs(list_of_net_amounts[min_index].net_amount), list_of_net_amounts[max_index].net_amount)
+            ans_graph[min_index][max_index] = (transaction_amount, matching_type)
+            list_of_net_amounts[min_index].net_amount += transaction_amount
+            list_of_net_amounts[max_index].net_amount -= transaction_amount
+            
+            if list_of_net_amounts[min_index].net_amount == 0:
+                num_zero_net_amounts += 1
+            
+            if list_of_net_amounts[max_index].net_amount == 0:
+                num_zero_net_amounts += 1
+    
+    # Step 3: Print the resulting minimized cash flow transactions
+    print_ans(ans_graph, num_banks, input_banks)
+
+# correct
+if __name__ == "__main__":
+    print("\n\t\t\t\t********************* Welcome to CASH FLOW MINIMIZER SYSTEM ***********************\n\n\n")
+    print("This system minimizes the number of transactions among multiple banks in different corners of the world that use different modes of payment. There is one world bank (with all payment modes) to act as an intermediary between banks that have no common mode of payment. \n\n")
+    
+    num_banks = int(input("Enter the number of banks participating in the transactions.\n"))
+    
+    input_banks = []
+    index_of = {}  # stores index of a bank
+    print("please enter the bank detais as follow: Bank name, number of payment modes, payment modes.(Please be aware that bank name and payment modes should not contain any spaces")
+    
+    max_num_types = 0
+    for i in range(num_banks):
+        if i == 0:
+            print("World Bank: ", end="")
+        else:
+            print(f"Bank {i}: ", end="")
+        
+        name = input().split()
+        bank_name = name[0]
+        input_bank = Bank(bank_name)
+        num_types = int(name[1])
+        if i == 0:
+            max_num_types = num_types
+        
+        input_bank.types = set(name[2:])
+        input_banks.append(input_bank)
+        index_of[bank_name] = i
+    
+    num_transactions = int(input("Enter number of transactions.\n"))
+    graph = [[0] * num_banks for _ in range(num_banks)]
+    
+    print("Enter the details of each transaction as stated: Debtor Bank, creditor Bank, and amount")
+    print("The transactions can be in any order\n")
+    for i in range(num_transactions):
+        print(f"{i} th transaction: ", end="")
+        transaction = input().split()
+        debtor_bank = transaction[0]
+        creditor_bank = transaction[1]
+        amount = int(transaction[2])
+        graph[index_of[debtor_bank]][index_of[creditor_bank]] = amount
+    
+    # settle
+    minimize_cash_flow(num_banks, input_banks, index_of, num_transactions, graph, max_num_types)
+
+    
+    
+        
